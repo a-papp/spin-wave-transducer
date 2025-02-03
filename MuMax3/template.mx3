@@ -1,0 +1,62 @@
+// loop antenna on top of YIG film, Damon-Eshbach mode
+Nx := 2500
+Ny := 200
+Nz := 2
+dx := 0.2E-6
+dy := 0.5E-6
+dz := 0.799E-6
+setgridsize(Nx, Ny, Nz)
+setcellsize(dx, dy, dz)
+//setPBC(0,2,0)
+
+waveguide := Layer(0)
+setgeom(waveguide)
+
+
+Msat = 1.59E+5
+Aex  = 3.65E-12
+alpha= 0.00069
+m = uniform(0.1, 1.0, 0.0)
+
+
+
+// Absorbing boundary layer definition (ABL)
+alpha_start :=  0.000386   //default damping
+alpha_end :=  0.5       //maximum damping toward the edge of the structure
+N_ABL := 50       //number of damping regions per side
+w_ABL := 1;       //width of damping regions (in cells)
+
+for i := N_ABL; i>=0; i--{
+  // quadratic damping profile
+  alpha_local := alpha_start + (alpha_end-alpha_start)*pow(i,2)/pow(N_ABL,2)
+  damprect := rect((Nx-(N_ABL-i)*w_ABL*2)*dx,(Ny-0*(N_ABL-i)*w_ABL*2)*dy)
+  defregion(i,damprect)
+  alpha.setregion(i, alpha_local)
+}
+
+B_ext = vector(0.0,0.387,0.0)
+
+relax()
+
+OutputFormat = OVF2_TEXT
+//TableAdd(m) 
+//TableAdd(E_total)
+//tableautosave(1.0e-11)
+
+//Excitation frequency and total current
+Amp := 1.0
+@f_exc
+Tau := 30e-9
+@file_re
+@file_im
+B_ext.add(LoadFile(file_re), Amp*(1-exp(-t/Tau))*cos(2*pi*f_exc*t))
+B_ext.add(LoadFile(file_im), Amp*(1-exp(-t/Tau))*sin(2*pi*f_exc*t))
+
+
+run(299e-9)
+FixDt = 1e-12
+autosave(Crop(m, 1000, 1500, 0, Ny, 0, 1), 1e-12)
+//autosave(Crop(B_demag, 1200, 1300, 0, Ny, 1, 2), 1e-12)
+//save(Crop(B_ext, 1000, 1500, 0, Ny, 1, 2))
+run(1e-9)
+
